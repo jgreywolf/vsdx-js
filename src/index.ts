@@ -11,10 +11,10 @@ let pages: VisioPage[] = [];
 let relationships: VisioRelationship[] = [];
 let stylesheets: VisioStylesheet[] = [];
 
-export const ParseVisioFile = async (filePath: string): Promise<any> => {
+export async function parseVisioFile(filePath: string): Promise<VisioFile> {
   const vsdxBuffer = fs.readFileSync(filePath);
   const archive = new AdmZip(vsdxBuffer);
-  
+
   const entries = archive.getEntries();
   for (const entry of entries) {
     let jsonObj = undefined;
@@ -46,25 +46,27 @@ export const ParseVisioFile = async (filePath: string): Promise<any> => {
     }
   }
 
-  for(const page of pages) {
-    const rel : VisioRelationship | undefined = relationships.find(relation => relation.Id === page.RelationshipId && relation.Type === 'Page');
-    if(rel) {
+  for (const page of pages) {
+    const rel: VisioRelationship | undefined = relationships.find(
+      (relation) => relation.Id === page.RelationshipId && relation.Type === 'Page'
+    );
+    if (rel) {
       const entryName = getEntryName(rel.Target);
       const pageObject = jsonObjects[entryName];
       page.Shapes = getShapes(pageObject);
     }
   }
-  
+
   return {
     Masters: masters,
     Pages: pages,
     Stylesheets: stylesheets,
     Relationships: relationships
   } as VisioFile;
-};
+}
 
-const parseRelationships = (jsonObj: any) : VisioRelationship[]=> {
-  const entries : VisioRelationship[] = [];
+const parseRelationships = (jsonObj: any): VisioRelationship[] => {
+  const entries: VisioRelationship[] = [];
   const relObjects = jsonObj['Relationships']['Relationship'];
 
   for (let i = 0; i < relObjects.length; i++) {
@@ -73,7 +75,7 @@ const parseRelationships = (jsonObj: any) : VisioRelationship[]=> {
     relationship.Id = relObjects[i]['$']['Id'];
     relationship.Target = relObjects[i]['$']['Target'];
     const type = getRelationshipType(relObjects[i]['$']['Type']);
-    if(type) {
+    if (type) {
       relationship.Type = type;
     }
 
@@ -118,7 +120,7 @@ const parseMastersFile = (jsonObj: any) => {
     master.LineStyleRefId = masterObjects[i]['PageSheet']['LineStyle'];
     master.FillStyleRefId = masterObjects[i]['PageSheet']['FillStyle'];
     master.TextStyleRefId = masterObjects[i]['PageSheet']['TextStyle'];
-    
+
     masters.push(master);
   }
 
@@ -134,7 +136,7 @@ const parsePagesFile = (jsonObj: any) => {
     page.Id = objects[i]['$']['ID'];
     page.Name = objects[i]['$']['Name'];
     page.RelationshipId = objects[i]['Rel'][0]['$']['r:id'];
-    
+
     pages.push(page);
   }
 
@@ -159,9 +161,11 @@ const getShapes = (pageObject: any): VisioShape[] => {
 
       if (master) {
         shape.Type = master.Name;
-        const masterRel: VisioRelationship | undefined = relationships.find(relation => relation.Id === master.RelationshipId && relation.Type === 'Master');
-        if(masterRel) {
-          const masterObj = jsonObjects[getEntryName(masterRel?.Target)]
+        const masterRel: VisioRelationship | undefined = relationships.find(
+          (relation) => relation.Id === master.RelationshipId && relation.Type === 'Master'
+        );
+        if (masterRel) {
+          const masterObj = jsonObjects[getEntryName(masterRel?.Target)];
           if (shape.Type === 'Dynamic connector' && connectObjects) {
             const { fromNode, toNode } = getConnectorNodes(connectObjects[0]['Connect'], shape.Id);
             shape.FromNode = fromNode;
@@ -242,13 +246,13 @@ const getValueFromCell = (cells: any, field: string): string => {
   return value;
 };
 
-const getRelationshipType = (type: string) : 'Master' | 'Page' | undefined => {
+const getRelationshipType = (type: string): 'Master' | 'Page' | undefined => {
   const index = type.lastIndexOf('/') + 1;
-  switch(type.substring(index)) {
+  switch (type.substring(index)) {
     case 'master':
-      return 'Master'
+      return 'Master';
     case 'page':
-      return 'Page'
+      return 'Page';
     default:
       return undefined;
   }

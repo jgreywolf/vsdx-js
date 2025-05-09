@@ -1,6 +1,6 @@
 {
   "name": "vsdx-js",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "typescript library to parse a Visio (.vsdx) file into a javascript object",
   "keywords": [
     "visio"
@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "author": "Justin Greywolf",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -23,6 +23,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "@types/xml2js": "^0.4.14",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
