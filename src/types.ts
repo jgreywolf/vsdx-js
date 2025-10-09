@@ -13,22 +13,22 @@ export interface VisioEntity {
 }
 
 export interface Style {
-  FillForeground: string;
-  FillBackground: string;
-  FillPattern: number;
-  TextColor: string;
-  TextBkgnd: string;
-  HideText: string;
-  TextDirection: string;
-  LineWeight: number;
-  LineColor: string;
-  LinePattern: number;
-  Rounding: number;
-  BeginArrow: number;
-  BeginArrowSize: number;
-  EndArrow: number;
-  EndArrowSize: number;
-  LineCap: number;  
+  FillForeground?: string;
+  FillBackground?: string;
+  FillPattern?: number;
+  TextColor?: string;
+  TextBkgnd?: string;
+  HideText?: string;
+  TextDirection?: string;
+  LineWeight?: number;
+  LineColor?: string;
+  LinePattern?: number;
+  Rounding?: number;
+  BeginArrow?: number;
+  BeginArrowSize?: number;
+  EndArrow?: number;
+  EndArrowSize?: number;
+  LineCap?: number;  
 }
 
 export interface VisioRelationship extends VisioEntity {
@@ -46,6 +46,7 @@ export interface VisioMaster extends VisioEntity {
   LineStyleRefId: string;
   FillStyleRefId: string;
   TextStyleRefId: string;
+  Style: Style;
 }
 
 export interface VisioPage extends VisioEntity {

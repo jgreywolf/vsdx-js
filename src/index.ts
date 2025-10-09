@@ -49,6 +49,26 @@ export async function parseVisioFile(filePath: string): Promise<VisioFile> {
     }
   }
 
+  // Enhanced: Parse master objects and their styles
+  for (const master of masters) {
+    const rel: VisioRelationship | undefined = relationships.find(
+      (relation) => relation.Id === master.RelationshipId && relation.Type === 'Master'
+    );
+    if (rel) {
+      const entryName = getEntryName(rel.Target);
+      const masterObject = jsonObjects[entryName];
+      if (masterObject) {
+        // Parse master's own style properties from its PageSheet
+        const pageSheet = masterObject?.PageContents?.PageSheet;
+        if (pageSheet && pageSheet.Cell) {
+          master.Style = processStyleCells(pageSheet.Cell);
+        } else {
+          master.Style = {};
+        }
+      }
+    }
+  }
+
   for (const page of pages) {
     const rel: VisioRelationship | undefined = relationships.find(
       (relation) => relation.Id === page.RelationshipId && relation.Type === 'Page'
@@ -88,6 +108,90 @@ const parseRelationships = (jsonObj: any): VisioRelationship[] => {
   return entries;
 };
 
+const processStyleCells = (cells: any[]): Style => {
+  const style = {} as Style;
+  
+  if (!cells || !Array.isArray(cells)) return style;
+  
+  cells.forEach(cell => {
+    const name = cell.$?.N;
+    const value = cell.$?.V;
+    const unit = cell.$?.U;
+    const formula = cell.$?.F;
+    
+    if (!name || value === undefined) return;
+    
+    // Skip inherited and themed values for now
+    if (formula === 'Inh' || value === 'Themed') return;
+    
+    switch (name) {
+      case 'LineWeight':
+        style.LineWeight = parseLineWeight(value, unit);
+        break;
+      case 'LineColor':
+        const lineColor = parseColorEnhanced(value);
+        if (lineColor) style.LineColor = lineColor;
+        break;
+      case 'LinePattern':
+        const linePattern = parseFloat(value);
+        if (!isNaN(linePattern)) style.LinePattern = linePattern;
+        break;
+      case 'Rounding':
+        const rounding = parseFloat(value);
+        if (!isNaN(rounding)) style.Rounding = rounding;
+        break;
+      case 'BeginArrow':
+        const beginArrow = parseInt(value);
+        if (!isNaN(beginArrow)) style.BeginArrow = beginArrow;
+        break;
+      case 'BeginArrowSize':
+        const beginArrowSize = parseInt(value);
+        if (!isNaN(beginArrowSize)) style.BeginArrowSize = beginArrowSize;
+        break;
+      case 'EndArrow':
+        const endArrow = parseInt(value);
+        if (!isNaN(endArrow)) style.EndArrow = endArrow;
+        break;
+      case 'EndArrowSize':
+        const endArrowSize = parseInt(value);
+        if (!isNaN(endArrowSize)) style.EndArrowSize = endArrowSize;
+        break;
+      case 'LineCap':
+        const lineCap = parseInt(value);
+        if (!isNaN(lineCap)) style.LineCap = lineCap;
+        break;
+      case 'FillForegnd':
+        const fillForeground = parseColorEnhanced(value);
+        if (fillForeground) style.FillForeground = fillForeground;
+        break;
+      case 'FillBkgnd':
+        const fillBackground = parseColorEnhanced(value);
+        if (fillBackground) style.FillBackground = fillBackground;
+        break;
+      case 'FillPattern':
+        const fillPattern = parseFloat(value);
+        if (!isNaN(fillPattern)) style.FillPattern = fillPattern;
+        break;
+      case 'Color': // Text color
+        const textColor = parseColorEnhanced(value);
+        if (textColor) style.TextColor = textColor;
+        break;
+      case 'TextBkgnd':
+        const textBkgnd = parseColorEnhanced(value);
+        if (textBkgnd) style.TextBkgnd = textBkgnd;
+        break;
+      case 'HideText':
+        style.HideText = value;
+        break;
+      case 'TextDirection':
+        style.TextDirection = value;
+        break;
+    }
+  });
+  
+  return style;
+};
+
 const parseDocumentProperties = (jsonObj: any) => {
   const styleSheets: VisioStylesheet[] = [];
   const stylesheetObjects = jsonObj['VisioDocument']['StyleSheets'][0]['StyleSheet'];
@@ -100,7 +204,9 @@ const parseDocumentProperties = (jsonObj: any) => {
     sheet.LineStyleRefId = stylesheetObjects[i]['$']['LineStyle'];
     sheet.FillStyleRefId = stylesheetObjects[i]['$']['FillStyle'];
     sheet.TextStyleRefId = stylesheetObjects[i]['$']['TextStyle'];
-    sheet.Style = stylesheetObjects[i]['Cell'];
+    
+    // Enhanced: Process cell data into proper Style object instead of raw cells
+    sheet.Style = processStyleCells(stylesheetObjects[i]['Cell'] || []);
 
     styleSheets.push(sheet);
   }
@@ -109,7 +215,7 @@ const parseDocumentProperties = (jsonObj: any) => {
 };
 
 const parseMastersFile = (jsonObj: any) => {
-  const masters: VisioMaster[] = [];
+  const mastersList: VisioMaster[] = [];
   const masterObjects = jsonObj['Masters']['Master'];
 
   for (let i = 0; i < masterObjects.length; i++) {
@@ -117,17 +223,22 @@ const parseMastersFile = (jsonObj: any) => {
     master.Id = masterObjects[i]['$']['ID'];
     master.Name = masterObjects[i]['$']['Name'];
     master.UniqueID = masterObjects[i]['$']['UniqueID'];
+    master.BaseID = masterObjects[i]['$']['BaseID'];
     master.MasterType = masterObjects[i]['$']['MasterType'];
     master.RelationshipId = masterObjects[i]['Rel'][0]['$']['r:id'];
     master.Hidden = masterObjects[i]['$']['Hidden'];
-    master.LineStyleRefId = masterObjects[i]['PageSheet']['LineStyle'];
-    master.FillStyleRefId = masterObjects[i]['PageSheet']['FillStyle'];
-    master.TextStyleRefId = masterObjects[i]['PageSheet']['TextStyle'];
+    
+    // Enhanced: Extract style references from PageSheet
+    if (masterObjects[i]['PageSheet']) {
+      master.LineStyleRefId = masterObjects[i]['PageSheet']['LineStyle'];
+      master.FillStyleRefId = masterObjects[i]['PageSheet']['FillStyle'];
+      master.TextStyleRefId = masterObjects[i]['PageSheet']['TextStyle'];
+    }
 
-    masters.push(master);
+    mastersList.push(master);
   }
 
-  return masters;
+  return mastersList;
 };
 
 const parsePagesFile = (jsonObj: any) => {
@@ -156,10 +267,17 @@ const getShapes = (pageObject: any): VisioShape[] => {
     for (let i = 0; i < shapeCount; i++) {
       const shape = { Type: 'unknown', IsEdge: false, Label: '' } as VisioShape;
       const shapeContainer = shapeObjects['Shape'][i];
-      const cells = shapeContainer['Cell'];
+      const cells = shapeContainer['Cell'] || [];
 
       shape.Id = shapeContainer['$']['ID'];
       shape.MasterId = shapeContainer['$']['Master'];
+      
+      // Enhanced: Extract style references from shape
+      const styleRefs = extractStyleReferences(cells);
+      shape.LineStyleRefId = styleRefs.LineStyleRefId || '';
+      shape.FillStyleRefId = styleRefs.FillStyleRefId || '';
+      shape.TextStyleRefId = styleRefs.TextStyleRefId || '';
+      
       const master = masters.find((master) => master.Id === shape.MasterId);
 
       if (master) {
@@ -182,7 +300,8 @@ const getShapes = (pageObject: any): VisioShape[] => {
         shape.Label = shapeContainer['Text'][0]['_'].replace(/\r?\n|\r/g, '').trim();
       }
 
-      shape.Style = getStyleFromObject(cells);
+      // Enhanced: Resolve style using inheritance chain (Shape → Master → Stylesheet)
+      shape.Style = resolveShapeStyleWithInheritance(shapeContainer, master);
 
       shapes.push(shape);
     }
@@ -217,22 +336,256 @@ const getConnectorNodes = (connectObjects: any, shapeId: string) => {
   return { fromNode, toNode };
 };
 
+const parseLineWeight = (value: string, unit?: string): number => {
+  const numValue = parseFloat(value);
+  if (isNaN(numValue)) return 0.75; // Default line weight
+  
+  // Convert to pixels based on unit
+  switch (unit) {
+    case 'PT': return numValue * 96 / 72; // Points to pixels
+    case 'IN': return numValue * 96;      // Inches to pixels
+    case 'MM': return numValue * 96 / 25.4; // Millimeters to pixels
+    case 'CM': return numValue * 96 / 2.54; // Centimeters to pixels
+    default: return numValue * 96; // Assume inches if no unit specified
+  }
+};
+
+const parseColorEnhanced = (value: string): string => {
+  if (!value || value === '' || value === '0') return '';
+  
+  // Already a hex color
+  if (value.startsWith('#')) return value;
+  
+  // Handle RGB format (e.g., "255,0,0")
+  if (value.includes(',')) {
+    const parts = value.split(',').map(p => parseInt(p.trim()));
+    if (parts.length === 3 && parts.every(p => p >= 0 && p <= 255)) {
+      return `#${parts.map(p => p.toString(16).padStart(2, '0')).join('')}`;
+    }
+  }
+  
+  // Handle Visio color index
+  const colorIndex = parseInt(value);
+  if (!isNaN(colorIndex)) {
+    return getVisioColorByIndex(colorIndex);
+  }
+  
+  return value;
+};
+
+const getVisioColorByIndex = (index: number): string => {
+  // Extended Visio color palette
+  const visioColors: { [key: number]: string } = {
+    0: '#FFFFFF', // White
+    1: '#000000', // Black
+    2: '#FF0000', // Red
+    3: '#00FF00', // Green
+    4: '#0000FF', // Blue
+    5: '#FFFF00', // Yellow
+    6: '#FF00FF', // Magenta
+    7: '#00FFFF', // Cyan
+    8: '#800000', // Dark Red
+    9: '#008000', // Dark Green
+    10: '#000080', // Dark Blue
+    11: '#808000', // Olive
+    12: '#800080', // Purple
+    13: '#008080', // Teal
+    14: '#C0C0C0', // Silver
+    15: '#808080', // Gray
+    16: '#9999FF', // Light Blue
+    17: '#993366', // Dark Pink
+    18: '#FFFFCC', // Light Yellow
+    19: '#CCFFFF', // Light Cyan
+    20: '#660066', // Dark Purple
+    21: '#FF8080', // Light Red
+    22: '#0066CC', // Medium Blue
+    23: '#CCCCFF', // Very Light Blue
+    24: '#000080', // Navy
+    25: '#FF00FF', // Fuchsia
+    // Add more colors as needed
+  };
+  
+  return visioColors[index] || '#000000';
+};
+
+const extractStyleReferences = (cells: any[]): any => {
+  const refs: any = {};
+  
+  if (!cells || !Array.isArray(cells)) return refs;
+  
+  cells.forEach(cell => {
+    const name = cell.$?.N;
+    const value = cell.$?.V;
+    
+    if (name === 'LineStyle') refs.LineStyleRefId = value;
+    if (name === 'FillStyle') refs.FillStyleRefId = value;
+    if (name === 'TextStyle') refs.TextStyleRefId = value;
+  });
+  
+  return refs;
+};
+
+const resolveShapeStyleWithInheritance = (shapeContainer: any, master?: VisioMaster): Style => {
+  const style = {} as Style;
+  
+  // 1. Apply defaults first
+  applyDefaultStyles(style);
+  
+  // 2. Apply stylesheet styles if master references them
+  if (master) {
+    applyStylesheetStyles(style, master);
+  }
+  
+  // 3. Apply master styles (medium priority)
+  if (master?.Style) {
+    mergeStyles(style, master.Style);
+  }
+  
+  // 4. Apply shape-specific styles (highest priority)
+  const shapeStyle = processStyleCells(shapeContainer.Cell || []);
+  mergeStyles(style, shapeStyle);
+  
+  return style;
+};
+
+const applyDefaultStyles = (style: Style): void => {
+  style.LineWeight = 0.75;
+  style.LineColor = '#000000';
+  style.LinePattern = 1;
+  style.FillPattern = 1;
+  style.FillForeground = '#FFFFFF';
+  style.FillBackground = '#000000';
+  style.BeginArrow = 0;
+  style.EndArrow = 0;
+  style.BeginArrowSize = 2;
+  style.EndArrowSize = 2;
+  style.LineCap = 0;
+  style.Rounding = 0;
+  style.TextColor = '#000000';
+  style.TextBkgnd = '#FFFFFF';
+  style.HideText = '0';
+  style.TextDirection = '0';
+};
+
+const applyStylesheetStyles = (style: Style, master: VisioMaster): void => {
+  const styleIds = [master.LineStyleRefId, master.FillStyleRefId, master.TextStyleRefId];
+  
+  styleIds.forEach(styleId => {
+    if (styleId) {
+      const stylesheet = stylesheets.find(s => s.ID === styleId);
+      if (stylesheet?.Style) {
+        mergeStyles(style, stylesheet.Style);
+      }
+    }
+  });
+};
+
+const mergeStyles = (target: Style, source: Style): void => {
+  Object.keys(source).forEach(key => {
+    const sourceValue = (source as any)[key];
+    if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+      (target as any)[key] = sourceValue;
+    }
+  });
+};
+
 const getStyleFromObject = (cells: any[]): Style => {
   const style = {} as Style;
-  const lineWeightInPixels = parseFloat(getValueFromCell(cells, 'LineWeight')) * 96;
-  style.LineWeight = lineWeightInPixels;
-  style.LineColor = getValueFromCell(cells, 'LineColor');
-  style.LinePattern = parseFloat(getValueFromCell(cells, 'LinePattern'));
-  style.Rounding = parseFloat(getValueFromCell(cells, 'Rounding'));
-  style.BeginArrow = parseFloat(getValueFromCell(cells, 'BeginArrow'));
-  style.BeginArrowSize = parseFloat(getValueFromCell(cells, 'BeginArrowSize'));
-  style.EndArrow = parseFloat(getValueFromCell(cells, 'EndArrow'));
-  style.EndArrowSize = parseFloat(getValueFromCell(cells, 'EndArrowSize'));
-  style.LineCap = parseFloat(getValueFromCell(cells, 'LineCap'));
-  style.FillForeground = getValueFromCell(cells, 'FillForegnd');
-  style.FillBackground = getValueFromCell(cells, 'FillBkgnd');
-  style.TextColor = getValueFromCell(cells, 'Color');
-  style.FillPattern = parseFloat(getValueFromCell(cells, 'FillPattern'));
+  
+  // Apply defaults first
+  style.LineWeight = 0.75;
+  style.LineColor = '#000000';
+  style.LinePattern = 1;
+  style.FillForeground = '#FFFFFF';
+  style.FillBackground = '#000000';
+  style.BeginArrow = 0;
+  style.EndArrow = 0;
+  style.BeginArrowSize = 2;
+  style.EndArrowSize = 2;
+  style.LineCap = 0;
+  style.Rounding = 0;
+  style.TextColor = '#000000';
+  style.FillPattern = 1;
+  style.TextBkgnd = '#FFFFFF';
+  style.HideText = '0';
+  style.TextDirection = '0';
+  
+  // Then override with actual values from cells
+  cells.forEach(cell => {
+    const name = cell?.['$']?.['N'];
+    const value = cell?.['$']?.['V'];
+    const unit = cell?.['$']?.['U'];
+    const formula = cell?.['$']?.['F'];
+    
+    if (!name || value === undefined) return;
+    
+    // Skip inherited and themed values for now
+    if (formula === 'Inh' || value === 'Themed') return;
+    
+    switch (name) {
+      case 'LineWeight':
+        style.LineWeight = parseLineWeight(value, unit);
+        break;
+      case 'LineColor':
+        const lineColor = parseColorEnhanced(value);
+        if (lineColor) style.LineColor = lineColor;
+        break;
+      case 'LinePattern':
+        const linePattern = parseFloat(value);
+        if (!isNaN(linePattern)) style.LinePattern = linePattern;
+        break;
+      case 'Rounding':
+        const rounding = parseFloat(value);
+        if (!isNaN(rounding)) style.Rounding = rounding;
+        break;
+      case 'BeginArrow':
+        const beginArrow = parseInt(value);
+        if (!isNaN(beginArrow)) style.BeginArrow = beginArrow;
+        break;
+      case 'BeginArrowSize':
+        const beginArrowSize = parseInt(value);
+        if (!isNaN(beginArrowSize)) style.BeginArrowSize = beginArrowSize;
+        break;
+      case 'EndArrow':
+        const endArrow = parseInt(value);
+        if (!isNaN(endArrow)) style.EndArrow = endArrow;
+        break;
+      case 'EndArrowSize':
+        const endArrowSize = parseInt(value);
+        if (!isNaN(endArrowSize)) style.EndArrowSize = endArrowSize;
+        break;
+      case 'LineCap':
+        const lineCap = parseInt(value);
+        if (!isNaN(lineCap)) style.LineCap = lineCap;
+        break;
+      case 'FillForegnd':
+        const fillForeground = parseColorEnhanced(value);
+        if (fillForeground) style.FillForeground = fillForeground;
+        break;
+      case 'FillBkgnd':
+        const fillBackground = parseColorEnhanced(value);
+        if (fillBackground) style.FillBackground = fillBackground;
+        break;
+      case 'FillPattern':
+        const fillPattern = parseFloat(value);
+        if (!isNaN(fillPattern)) style.FillPattern = fillPattern;
+        break;
+      case 'Color': // Text color
+        const textColor = parseColorEnhanced(value);
+        if (textColor) style.TextColor = textColor;
+        break;
+      case 'TextBkgnd':
+        const textBkgnd = parseColorEnhanced(value);
+        if (textBkgnd) style.TextBkgnd = textBkgnd;
+        break;
+      case 'HideText':
+        style.HideText = value;
+        break;
+      case 'TextDirection':
+        style.TextDirection = value;
+        break;
+    }
+  });
 
   return style;
 };
