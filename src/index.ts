@@ -4,6 +4,9 @@ import * as fs from 'fs';
 import { parseStringPromise } from 'xml2js';
 import { VisioMaster, VisioPage, VisioRelationship, VisioStylesheet, VisioShape, VisioFile, Style } from './types';
 
+// Export all types for consumers
+export * from './types';
+
 const jsonObjects: any = {};
 
 let masters: VisioMaster[] = [];

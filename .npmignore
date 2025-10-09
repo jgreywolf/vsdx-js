@@ -1,0 +1,14 @@
+src/
+tests/
+test-npm-build.js
+test-npm-build-ts.js
+npm-test-temp/
+npm-test-temp-ts/
+rollup.config.js
+tsconfig.json
+.eslintrc.*
+*.tsbuildinfo
+.vscode/
+.git/
+node_modules/
+*.log

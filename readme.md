@@ -1,7 +1,37 @@
-vsdx-js is a library for parsing Visio files (*.vsdx) into javascript objects.
+vsdx-js is a library for parsing Visio files (\*.vsdx) into javascript objects.
 
-## usage
+## Installation
 
+```bash
+npm install vsdx-js
+```
+
+## Usage
+
+### JavaScript (ES Modules)
+
+```javascript
+import { parseVisioFile } from 'vsdx-js';
+
+const visioData = await parseVisioFile('path/to/your/file.vsdx');
+console.log(visioData);
+```
+
+### TypeScript
+
+```typescript
+import { parseVisioFile, VisioFile, VisioPage, VisioShape } from 'vsdx-js';
+
+const visioData: VisioFile = await parseVisioFile('path/to/your/file.vsdx');
+
+// Access typed data
+visioData.Pages.forEach((page: VisioPage) => {
+  console.log(`Page: ${page.Name}`);
+  page.Shapes.forEach((shape: VisioShape) => {
+    console.log(`  Shape: ${shape.Label} (${shape.Type})`);
+  });
+});
+```
 
 ## output
 

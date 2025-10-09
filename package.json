@@ -1,11 +1,11 @@
 {
   "name": "vsdx-js",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "typescript library to parse a Visio (.vsdx) file into a javascript object",
   "keywords": [
     "visio"
   ],
-  "homepage": "https://github.com/jgreywolf/vsdx-js#readme",
+  "homepage": "https://github.com/jgreywolf/vsdx-js",
   "bugs": {
     "url": "https://github.com/jgreywolf/vsdx-js/issues"
   },
@@ -15,17 +15,39 @@
   },
   "license": "MIT",
   "author": "Justin Greywolf",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rollup -c",
+    "build:tsc": "tsc",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "node test-npm-build.js",
+    "test:types": "node test-npm-build-ts.js",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major"
   },
   "devDependencies": {
+    "@rollup/plugin-typescript": "^12.1.4",
     "@types/adm-zip": "^0.5.7",
     "@types/xml2js": "^0.4.14",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.52.4",
+    "rollup-plugin-dts": "^6.2.3",
     "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
     "typescript": "^5.8.3"
   },
   "dependencies": {
