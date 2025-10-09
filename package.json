@@ -1,6 +1,6 @@
 {
   "name": "vsdx-js",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "typescript library to parse a Visio (.vsdx) file into a javascript object",
   "keywords": [
     "visio"
