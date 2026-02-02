@@ -2,7 +2,7 @@
 import AdmZip from 'adm-zip';
 import * as fs from 'fs';
 import { parseStringPromise } from 'xml2js';
-import { VisioMaster, VisioPage, VisioRelationship, VisioStylesheet, VisioShape, VisioFile, Style } from './types';
+import { VisioMaster, VisioPage, VisioRelationship, VisioStylesheet, VisioShape, VisioFile, Style, FileSource } from './types';
 
 // Export all types for consumers
 export * from './types';
@@ -14,8 +14,13 @@ let pages: VisioPage[] = [];
 let relationships: VisioRelationship[] = [];
 let stylesheets: VisioStylesheet[] = [];
 
-export async function parseVisioFile(filePath: string): Promise<VisioFile> {
-  const vsdxBuffer = fs.readFileSync(filePath);
+export async function parseVisioFile(file: FileSource): Promise<VisioFile> {
+  const vsdxBuffer = readFileSource(file);
+
+  if (!vsdxBuffer || vsdxBuffer.length === 0) {
+    throw new Error('File is empty or invalid');
+  }
+
   const archive = new AdmZip(vsdxBuffer);
 
   const entries = archive.getEntries();
@@ -617,4 +622,14 @@ const getRelationshipType = (type: string): 'Master' | 'Page' | undefined => {
 const getEntryName = (entryName: string) => {
   const nameStartIndex = entryName.lastIndexOf('/') + 1;
   return entryName.substring(nameStartIndex).replace('.xml', '');
+};
+
+const readFileSource = (file:FileSource) : Buffer => {
+  if (typeof file === 'string') {
+    return fs.readFileSync(file);
+  } else if (Buffer.isBuffer(file)) {
+    return file;
+  } else {
+    throw new Error('Invalid file source. Expected a file path or Buffer.');
+  }
 };

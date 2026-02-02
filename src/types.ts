@@ -77,3 +77,5 @@ export interface VisioStylesheet {
   TextStyleRefId: string;
   Style: Style;
 }
+
+export type FileSource = string | Buffer;

@@ -33,6 +33,26 @@ visioData.Pages.forEach((page: VisioPage) => {
 });
 ```
 
+#### JavaScript (ES Modules)
+```javascript
+import { parseVisioFile } from 'vsdx-js';
+import * as fs from 'fs';
+
+// Read file into buffer
+const buffer = fs.readFileSync('path/to/your/file.vsdx');
+const visioData = await parseVisioFile(buffer);
+```
+#### TypeScript
+```typescript
+import { parseVisioFile, VisioFile } from 'vsdx-js';
+import * as fs from 'fs';
+
+// Read file into buffer
+const buffer: Buffer = fs.readFileSync('path/to/your/file.vsdx');
+const visioData: VisioFile = await parseVisioFile(buffer);
+```
+This is useful when working with files loaded via HTTP requests, streams, or other in-memory sources.
+
 ## output
 
 ```

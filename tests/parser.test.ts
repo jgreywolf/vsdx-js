@@ -2,6 +2,7 @@ import { fail } from 'assert';
 import { describe, expect, it } from 'vitest';
 import { VisioFile } from '../src/types';
 import { parseVisioFile } from '../src';
+import * as fs from 'fs';
 
 const testFilePath = 'tests/Connectors.vsdx';
 
@@ -15,6 +16,14 @@ describe('given a valid Visio file', () => {
   it('should parse masters file', async () => {
     const visioFile = (await parseVisioFile(testFilePath)) as VisioFile;
 
+    expect(visioFile.Masters.length).toBe(34);
+  });
+
+  it('should parse file from Buffer', async () => {
+    const buffer = fs.readFileSync(testFilePath);
+    const visioFile = await parseVisioFile(buffer) as VisioFile;
+
+    expect(visioFile.Stylesheets.length).toBe(8);
     expect(visioFile.Masters.length).toBe(34);
   });
 
